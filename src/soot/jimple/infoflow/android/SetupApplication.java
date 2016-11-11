@@ -43,6 +43,7 @@ import soot.jimple.infoflow.android.config.SootConfigForAndroid;
 import soot.jimple.infoflow.android.data.AndroidMethod;
 import soot.jimple.infoflow.android.data.parsers.PermissionMethodParser;
 import soot.jimple.infoflow.android.manifest.ProcessManifest;
+import soot.jimple.infoflow.android.nu.FlowTriggerEventAnalyzer;
 import soot.jimple.infoflow.android.resources.ARSCFileParser;
 import soot.jimple.infoflow.android.resources.ARSCFileParser.AbstractResource;
 import soot.jimple.infoflow.android.resources.ARSCFileParser.StringResource;
@@ -58,11 +59,14 @@ import soot.jimple.infoflow.entryPointCreators.AndroidEntryPointCreator;
 import soot.jimple.infoflow.handlers.ResultsAvailableHandler;
 import soot.jimple.infoflow.ipc.IIPCManager;
 import soot.jimple.infoflow.results.InfoflowResults;
+import soot.jimple.infoflow.results.ResultSinkInfo;
+import soot.jimple.infoflow.results.ResultSourceInfo;
 import soot.jimple.infoflow.rifl.RIFLSourceSinkDefinitionProvider;
 import soot.jimple.infoflow.source.data.ISourceSinkDefinitionProvider;
 import soot.jimple.infoflow.source.data.SourceSinkDefinition;
 import soot.jimple.infoflow.taintWrappers.ITaintPropagationWrapper;
 import soot.options.Options;
+import soot.util.MultiMap;
 
 public class SetupApplication {
 
@@ -834,7 +838,20 @@ public class SetupApplication {
 		this.collectedSources = info.getCollectedSources();
 		this.collectedSinks = info.getCollectedSinks();
 
+		
+		
+		// James: Adding my code here
+		//analyzeInfoFlowResult(info.getResults(), apkFileLocation);
+		
+		
 		return info.getResults();
+	}	
+	
+	private void analyzeInfoFlowResult(InfoflowResults results, String apkFileLocation) {
+		System.out.println("******* [NU OUTPUT BEGIN] ********");
+		FlowTriggerEventAnalyzer fteAnalyzer = new FlowTriggerEventAnalyzer(results, apkFileLocation);
+		fteAnalyzer.Analyze();
+		System.out.println("******* [NU OUTPUT END] ********");
 	}
 
 	private AndroidEntryPointCreator createEntryPointCreator() {
