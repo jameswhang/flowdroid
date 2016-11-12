@@ -1,5 +1,6 @@
 package soot.jimple.infoflow.android.nu;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -42,10 +43,15 @@ public class FlowTriggerEventAnalyzer {
 					Iterator<Edge> edges = cgraph.edgesInto(invokedMethod);
 					
 					if (edges.hasNext()) {
-						SootMethod triggerMethod = findTrigger(cgraph, invokedMethod);
-						if (triggerMethod != null) {
-							this.triggerMethods.add(triggerMethod);
-							System.out.println("[NUTEXT] Found source trigger: "+source+" tiggered by " + triggerMethod.getSignature());
+						SootMethod triggerMethodFromSource = findUITriggerMethodFromSource(cgraph, invokedMethod);
+						if (triggerMethodFromSource != null) {
+							this.triggerMethods.add(triggerMethodFromSource);
+							System.out.println("[NUTEXT] Found source trigger: "+source+" tiggered by " + triggerMethodFromSource.getSignature());
+						}
+						ArrayList<SootMethod> triggerMethodBetweenSourceAndSink = findTriggerMethodsFromSinkToSource(cgraph, invokedMethod, sink.getSink().getInvokeExpr().getMethod());
+						for (SootMethod m : triggerMethodBetweenSourceAndSink) {
+							this.triggerMethods.add(m);
+							System.out.println("[NUTEXT] Found source trigger: "+source+" tiggered by " + m.getSignature());
 						}
 					}
 				}
@@ -53,17 +59,53 @@ public class FlowTriggerEventAnalyzer {
 		}
 	}
 	
-	public void findTriggerViewAssocIds() {
-		Iterator<SootMethod> it = this.triggerMethods.iterator();
-		while(it.hasNext()) {
-			SootMethod m = it.next();
-			if (m.getName().equals("findViewById")) {
-				System.out.println("findViewById: " + m.getName());
+	
+	
+	public ArrayList<SootMethod> findTriggerMethodsFromSinkToSource(CallGraph cgraph, SootMethod sourceMethod, SootMethod sinkMethod) {
+		/*
+		 * Given a source and sink methods, tracks the call graph to find any triggering methods in the call flow between the source and sink methods
+		 * @param cgraph CallGraph object of the Android apk
+		 * @param sourceMethod SootMethod object of the source method
+		 * @param sinkMethod SootMethod object of the sink method
+		 * @return triggerMethod SootMethod object of the method that triggers
+		 */
+		ArrayList<SootMethod> triggerMethods = new ArrayList<SootMethod>();
+		HashSet<String> UIActionsSet = this.staticValueService.getUIEventActionsSet();
+		Set<String> visitedNodes = new HashSet<String>();
+		
+		LinkedList<SootMethod> queue = new LinkedList<SootMethod>();
+		queue.add(sinkMethod);
+		while(!queue.isEmpty()) {
+			SootMethod m = queue.removeFirst();
+			if (m.getSignature() == sourceMethod.getSignature()) {
+				break;
 			}
-		}
+			if (UIActionsSet.contains(m.getName())) {
+				triggerMethods.add(m);
+			}
+			
+			visitedNodes.add(m.getSignature());
+			Iterator<Edge> edges = cgraph.edgesInto(m);
+			while(edges.hasNext()) {
+				Edge e = edges.next();
+				SootMethod pred = e.getSrc().method();
+				if (pred != null) {
+					if (!visitedNodes.contains(pred.getSignature())) {
+						queue.addLast(pred);
+					}
+				}
+			}
+		}	
+		return triggerMethods;		
 	}
 	
-	public SootMethod findTrigger(CallGraph cgraph, SootMethod method) {
+	public SootMethod findUITriggerMethodFromSource(CallGraph cgraph, SootMethod method) {
+		/*
+		 * Given a source method, tracks the call graph to find any triggering methods that use UI actions in Android framework like "onClick()"
+		 * @param cgraph CallGraph object of the Android apk
+		 * @param method SootMethod object of the source method
+		 * @return triggerMethod SootMethod object of the method that triggers
+		 */
 		//System.out.println("findTrigger called for method: " + method.getName());
 		LinkedList<SootMethod> queue = new LinkedList<SootMethod>();
 		queue.add(method);
