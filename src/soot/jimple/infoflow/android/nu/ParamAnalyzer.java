@@ -1,4 +1,4 @@
-package soot.jimple.infoflow.android;
+package soot.jimple.infoflow.android.nu;
 
 import java.io.IOException;
 import java.text.MessageFormat;
@@ -105,18 +105,6 @@ public class ParamAnalyzer {
 			"setOnLongClickListener", "setOnSystemUiVisibilityChangeListener", "setOnTouchListener"};
 	
 
-	//TODO: 1. Modify the following method to trace back to the last method where the parameter comes from
-	/**
-	 * Find the trigger 
-	 * 
-	 * @return The results of the data flow analysis
-	 */
-	private SootMethod findPrecessorTrigger(SootMethod method){
-		SootMethod triggerMethod = null;
-		
-		return triggerMethod;
-	}
-	
 	// Can trace back to the last method by using returnType, 11/10/2016
 	
 	/**
