@@ -1,19 +1,27 @@
 package soot.jimple.infoflow.android.nu;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Set;
 
 import soot.Scene;
 import soot.SootMethod;
+import soot.Unit;
 import soot.jimple.InvokeExpr;
+import soot.jimple.Stmt;
 import soot.jimple.infoflow.results.InfoflowResults;
 import soot.jimple.infoflow.results.ResultSinkInfo;
 import soot.jimple.infoflow.results.ResultSourceInfo;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
+import soot.toolkits.graph.ExceptionalUnitGraph;
+import soot.toolkits.graph.Orderer;
+import soot.toolkits.graph.PseudoTopologicalOrderer;
+import soot.toolkits.graph.UnitGraph;
 import soot.util.MultiMap;
 
 public class FlowTriggerEventAnalyzer {
@@ -32,7 +40,7 @@ public class FlowTriggerEventAnalyzer {
 		this.triggerMethods = new HashSet<SootMethod>();
 	}
 	
-	public void Analyze() {
+	public void RunCallGraphAnalysis() {
 		CallGraph cgraph = Scene.v().getCallGraph();
 		for (ResultSinkInfo sink : this.infoflowResultMap.keySet()) {
 			Set<ResultSourceInfo> sources = this.infoflowResultMap.get(sink);
@@ -59,6 +67,25 @@ public class FlowTriggerEventAnalyzer {
 		}
 	}
 	
+	public void RunCFGAnalysis() {
+		System.out.println("[NUTEXT] Running CFG Analysis");
+		for (SootMethod triggerMethod : this.triggerMethods) {
+			UnitGraph g = new ExceptionalUnitGraph(triggerMethod.getActiveBody());
+			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
+
+			for (Unit u : orderer.newList(g, false)) {
+				Stmt s = (Stmt)u;
+				if (s.containsInvokeExpr()) {
+					InvokeExpr e = s.getInvokeExpr();
+					SootMethod m = e.getMethod();
+					if (m.getName() == "findViewById") {
+						System.out.println("[NUTEXT] Found findViewById trigger: " + triggerMethod.getName());
+					}
+				}
+			}
+		}
+		
+	}
 	
 	
 	public ArrayList<SootMethod> findTriggerMethodsFromSinkToSource(CallGraph cgraph, SootMethod sourceMethod, SootMethod sinkMethod) {

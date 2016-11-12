@@ -850,7 +850,8 @@ public class SetupApplication {
 	private void analyzeInfoFlowResult(InfoflowResults results, String apkFileLocation) {
 		System.out.println("******* [NU OUTPUT BEGIN] ********");
 		FlowTriggerEventAnalyzer fteAnalyzer = new FlowTriggerEventAnalyzer(results, apkFileLocation);
-		fteAnalyzer.Analyze();
+		fteAnalyzer.RunCallGraphAnalysis();
+		fteAnalyzer.RunCFGAnalysis();
 		System.out.println("******* [NU OUTPUT END] ********");
 	}
 
