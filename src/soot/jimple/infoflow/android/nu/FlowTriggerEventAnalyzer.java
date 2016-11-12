@@ -37,6 +37,7 @@ public class FlowTriggerEventAnalyzer {
 			Set<ResultSourceInfo> sources = this.infoflowResultMap.get(sink);
 			for (ResultSourceInfo source : sources) {
 				if (source.getSource().containsInvokeExpr()) { // is a call to something
+					//System.out.println("[NUTEXT] Looking at source: " + source.getSource().getInvokeExpr().getMethod().getSignature());
 					SootMethod invokedMethod = source.getSource().getInvokeExpr().getMethod();
 					Iterator<Edge> edges = cgraph.edgesInto(invokedMethod);
 					
@@ -52,7 +53,18 @@ public class FlowTriggerEventAnalyzer {
 		}
 	}
 	
+	public void findTriggerViewAssocIds() {
+		Iterator<SootMethod> it = this.triggerMethods.iterator();
+		while(it.hasNext()) {
+			SootMethod m = it.next();
+			if (m.getName().equals("findViewById")) {
+				System.out.println("findViewById: " + m.getName());
+			}
+		}
+	}
+	
 	public SootMethod findTrigger(CallGraph cgraph, SootMethod method) {
+		//System.out.println("findTrigger called for method: " + method.getName());
 		LinkedList<SootMethod> queue = new LinkedList<SootMethod>();
 		queue.add(method);
 		
@@ -61,6 +73,7 @@ public class FlowTriggerEventAnalyzer {
 		
 		while(!queue.isEmpty()) {
 			SootMethod m = queue.removeFirst();
+			//System.out.println("[NUTEXT] Found UI trigger of " + m.getName() + " while looking at method: " + method.getName());
 			if (UIActionsSet.contains(m.getName())) {
 				return m;
 			}
