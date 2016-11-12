@@ -133,6 +133,35 @@ public class ParamAnalyzer {
 
 		return null;
 	}
+	
+	
+	
+	
+	//TODO: 1. Implement a method to analyze return value of a given SootMethod
+	
+	/**
+	 * Read in a Soot Method from the Method List and get the type of the return value
+	 * 
+	 * @return The Type of the return value of the Soot Method
+	 */
+
+	
+	
+	
+	
+	
+	
+	
+	//TODO:  2. Implement a method to do a CFG Analysis on given Parameters
+	
+	/**
+	 * Read in a parameter and go through CFG Analysis on it
+	 * 
+	 * @return ?
+	 */
+	
+	
+	
 }
 
 //NOTE: Please feel free to contact Xiang Pan(xiangpan2011@u.northwestern.edu) and Xuechao Du(xcdu@foxmail.com) if there's any problem with the code.
