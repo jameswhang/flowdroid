@@ -79,27 +79,23 @@ public class FlowTriggerEventAnalyzer {
 	}
 	
 	public void RunCFGAnalysis() {
-		System.out.println("[NUTEXT] Running CFG Analysis");
 		for (SootMethod triggerMethod : this.triggerMethods) {
 			if (!triggerMethod.hasActiveBody()) {
 				continue;
 			}
 			UnitGraph g = new ExceptionalUnitGraph(triggerMethod.getActiveBody());
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
-			System.out.println("[NUTEXT] **** CFS of : " + triggerMethod.getSignature() + " ****");
 			for (Unit u : orderer.newList(g, false)) {
 				Stmt s = (Stmt)u;
 				if (s.containsInvokeExpr()) {
 					InvokeExpr e = s.getInvokeExpr();
 					SootMethod m = e.getMethod();
-					System.out.println("[NUTEXT] CFG method: " + m.getSignature() + " whose name is " + m.getName());
 					if (m.getName().equals("findViewById")) {
-						this.paramAnalyzer.processParameters(m);
+						this.paramAnalyzer.getParameterType(m);
 						System.out.println("[NUTEXT] Found findViewById trigger: " + triggerMethod.getName());
 					}
 				}
 			}
-			System.out.println("[NUTEXT] ************");
 		}
 	}
 	
@@ -126,7 +122,6 @@ public class FlowTriggerEventAnalyzer {
 			if (UIActionsSet.contains(m.getName())) {
 				triggerMethods.add(m);
 			}
-			
 			visitedNodes.add(m.getSignature());
 			Iterator<Edge> edges = cgraph.edgesInto(m);
 			while(edges.hasNext()) {

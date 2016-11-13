@@ -843,7 +843,6 @@ public class SetupApplication {
 		// James: Adding my code here
 		analyzeInfoFlowResult(info.getResults(), apkFileLocation);
 		
-		
 		return info.getResults();
 	}	
 	

@@ -106,11 +106,11 @@ public class ParamAnalyzer {
 			for(Type a : params){
 				if(a.toString().equals("String")||a.toString().equals("int")||a.toString().equals("java.lang.String")){
 					paramTypes.put(method.getName(), a.toString());
-					System.out.println("Exists constant args for findViewById(): "+a);
+					System.out.println("[NUTEXT] Exists constant args for findViewById(): "+a);
 				}
 				else{
 					paramTypes.put(method.getName(), a.toString());
-					System.out.println("Exists non-constant args for findViewById(): "+a);
+					System.out.println("[NUTEXT] Exists non-constant args for findViewById(): "+a);
 				}
 			}
 		}
