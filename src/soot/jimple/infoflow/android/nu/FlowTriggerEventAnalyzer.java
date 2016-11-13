@@ -31,6 +31,7 @@ public class FlowTriggerEventAnalyzer {
 	private InfoflowResults infoflowResult;
 	private StaticValueService staticValueService;
 	private Set<SootMethod> triggerMethods;
+	private ParamAnalyzer paramAnalyzer;
 	
 	public FlowTriggerEventAnalyzer(InfoflowResults results, String apkFileLocation) {
 		this.infoflowResult = results;
@@ -38,6 +39,7 @@ public class FlowTriggerEventAnalyzer {
 		this.apkFileLocation = apkFileLocation;
 		this.staticValueService = new StaticValueService();
 		this.triggerMethods = new HashSet<SootMethod>();
+		this.paramAnalyzer = new ParamAnalyzer();
 	}
 	
 	public void RunCallGraphAnalysis() {
@@ -45,6 +47,7 @@ public class FlowTriggerEventAnalyzer {
 		for (ResultSinkInfo sink : this.infoflowResultMap.keySet()) {
 			Set<ResultSourceInfo> sources = this.infoflowResultMap.get(sink);
 			for (ResultSourceInfo source : sources) {
+				boolean srcAdded = false;
 				if (source.getSource().containsInvokeExpr()) { // is a call to something
 					//System.out.println("[NUTEXT] Looking at source: " + source.getSource().getInvokeExpr().getMethod().getSignature());
 					SootMethod invokedMethod = source.getSource().getInvokeExpr().getMethod();
@@ -52,11 +55,19 @@ public class FlowTriggerEventAnalyzer {
 					
 					if (edges.hasNext()) {
 						SootMethod triggerMethodFromSource = findUITriggerMethodFromSource(cgraph, invokedMethod);
+						
 						if (triggerMethodFromSource != null) {
 							this.triggerMethods.add(triggerMethodFromSource);
+							if (!srcAdded) {
+								this.triggerMethods.add(invokedMethod);
+								srcAdded = true;
+							}
 							System.out.println("[NUTEXT] Found source trigger: "+source+" tiggered by " + triggerMethodFromSource.getSignature());
 						}
 						ArrayList<SootMethod> triggerMethodBetweenSourceAndSink = findTriggerMethodsFromSinkToSource(cgraph, invokedMethod, sink.getSink().getInvokeExpr().getMethod());
+						if (!triggerMethodBetweenSourceAndSink.isEmpty() && !srcAdded) {
+							this.triggerMethods.add(invokedMethod);
+						}
 						for (SootMethod m : triggerMethodBetweenSourceAndSink) {
 							this.triggerMethods.add(m);
 							System.out.println("[NUTEXT] Found source trigger: "+source+" tiggered by " + m.getSignature());
@@ -70,21 +81,26 @@ public class FlowTriggerEventAnalyzer {
 	public void RunCFGAnalysis() {
 		System.out.println("[NUTEXT] Running CFG Analysis");
 		for (SootMethod triggerMethod : this.triggerMethods) {
+			if (!triggerMethod.hasActiveBody()) {
+				continue;
+			}
 			UnitGraph g = new ExceptionalUnitGraph(triggerMethod.getActiveBody());
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
-
+			System.out.println("[NUTEXT] **** CFS of : " + triggerMethod.getSignature() + " ****");
 			for (Unit u : orderer.newList(g, false)) {
 				Stmt s = (Stmt)u;
 				if (s.containsInvokeExpr()) {
 					InvokeExpr e = s.getInvokeExpr();
 					SootMethod m = e.getMethod();
-					if (m.getName() == "findViewById") {
+					System.out.println("[NUTEXT] CFG method: " + m.getSignature() + " whose name is " + m.getName());
+					if (m.getName().equals("findViewById")) {
+						this.paramAnalyzer.processParameters(m);
 						System.out.println("[NUTEXT] Found findViewById trigger: " + triggerMethod.getName());
 					}
 				}
 			}
+			System.out.println("[NUTEXT] ************");
 		}
-		
 	}
 	
 	

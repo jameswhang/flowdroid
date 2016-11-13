@@ -91,20 +91,6 @@ import soot.toolkits.scalar.LocalDefs;
 import soot.util.queue.QueueReader;
 
 public class ParamAnalyzer {
-	
-	
-	private String[] EventNames = {
-			"onClick", "onLongClick", "onFocusChange", "onKey", 
-			"onTouch", "onKeyDown", "onKeyUp", "onTrackballEvent",
-			"onTouchEvent", "onFocusChanged"};
-	
-	private String[] SetEventListenerMethodNames = {
-			"setOnDragListener", "setOnClickListener", "setOnApplyWindowInsetsListener",
-			"setOnCreateContextMenuListener", "setOnEditorActionListener", "setOnFocusChangeListener",
-			"setOnGenericMotionListener", "setOnHoverListener", "setOnKeyListener",
-			"setOnLongClickListener", "setOnSystemUiVisibilityChangeListener", "setOnTouchListener"};
-	
-
 	// Can trace back to the last method by using returnType, 11/10/2016
 	
 	/**
