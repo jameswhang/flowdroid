@@ -110,9 +110,10 @@ public class ParamAnalyzer {
 	/**
 	 * Read in the Android Methods from the Method List and retrieve the parameters
 	 * 
+	 * @param Target SootMethod which needs to be analyzed
 	 * @return The map of the parameter types associated with methods
 	 */
-	public Map<String,String> processParameters(SootMethod method) {
+	public Map<String,String> getParameterType(SootMethod method) {
 		Map<String,String> paramTypes = new HashMap<String,String>();
 		if(method.getName().equals("findViewById")){
 			List<Type> params = method.getParameterTypes();
@@ -131,7 +132,7 @@ public class ParamAnalyzer {
 			System.out.println(method.getName()+"is not findViewById().");
 		}
 
-		return null;
+		return paramTypes;
 	}
 	
 	
@@ -142,23 +143,26 @@ public class ParamAnalyzer {
 	/**
 	 * Read in a Soot Method from the Method List and get the type of the return value
 	 * 
+	 * @param A SootMethod Type with return value
 	 * @return The Type of the return value of the Soot Method
 	 */
 
 	
-	
-	
-	
-	
-	
-	
-	//TODO:  2. Implement a method to do a CFG Analysis on given Parameters
-	
-	/**
-	 * Read in a parameter and go through CFG Analysis on it
-	 * 
-	 * @return ?
-	 */
+	public Map<String,String> getReturnValueType(SootMethod method) {
+		Map<String,String> returnTypes = new HashMap<String,String>();
+		
+		Type retType = method.getReturnType();
+		String type = retType.toString();
+		if(type.equals("String")||type.equals("int")||type.equals("java.lang.String")){
+			returnTypes.put(method.getName(), type);
+			System.out.println("Exists constant args for findViewById(): "+type);
+		}
+		else{
+			returnTypes.put(method.getName(), type);
+			System.out.println("Exists non-constant args for findViewById(): "+type);
+		}
+		return returnTypes;
+	}
 	
 	
 	
