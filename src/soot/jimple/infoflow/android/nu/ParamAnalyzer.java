@@ -99,17 +99,17 @@ public class ParamAnalyzer {
 	 * @param Target SootMethod which needs to be analyzed
 	 * @return The map of the parameter types associated with methods
 	 */
-	public Map<String,String> getParameterType(SootMethod method) {
-		Map<String,String> paramTypes = new HashMap<String,String>();
+	public Set<String> getParameterType(SootMethod method) {
+		Set<String> paramTypes = new HashSet<String>();
 		if(method.getName().equals("findViewById")){
 			List<Type> params = method.getParameterTypes();
 			for(Type a : params){
 				if(a.toString().equals("String")||a.toString().equals("int")||a.toString().equals("java.lang.String")){
-					paramTypes.put(method.getName(), a.toString());
+					paramTypes.add(a.toString());
 					System.out.println("[NUTEXT] Exists constant args for findViewById(): "+a);
 				}
 				else{
-					paramTypes.put(method.getName(), a.toString());
+					paramTypes.add("nonConstant");
 					System.out.println("[NUTEXT] Exists non-constant args for findViewById(): "+a);
 				}
 			}
@@ -117,11 +117,8 @@ public class ParamAnalyzer {
 		else{
 			System.out.println(method.getName()+"is not findViewById().");
 		}
-
 		return paramTypes;
 	}
-	
-	
 	
 	
 	//TODO: 1. Implement a method to analyze return value of a given SootMethod
@@ -150,8 +147,28 @@ public class ParamAnalyzer {
 		return returnTypes;
 	}
 	
+	public boolean hasNonConstantParam(SootMethod method) {
+		/* Returns whether a method has a constant return
+		 * This is specific to getViewById()
+		 * @param method SootMethod
+		 */
+		Set<String> paramTypes = getParameterType(method);
+		return paramTypes.contains("nonConstant");
+	}
 	
-	
+	public ArrayList<SootMethod> filterNonConstantParams(ArrayList<SootMethod> methods) {
+		/*
+		 * Given a list of SootMethod, filters it and returns a list of methods with non-constant parameters
+		 * @param methods List of methods to analyze
+		 */
+		ArrayList<SootMethod> nonConstants = new ArrayList<SootMethod>();
+		for (SootMethod method : methods) {
+			if (hasNonConstantParam(method)) {
+				nonConstants.add(method);
+			}
+		}
+		return nonConstants;
+	}
 }
 
 //NOTE: Please feel free to contact Xiang Pan(xiangpan2011@u.northwestern.edu) and Xuechao Du(xcdu@foxmail.com) if there's any problem with the code.
