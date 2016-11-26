@@ -169,6 +169,48 @@ public class ParamAnalyzer {
 		}
 		return nonConstants;
 	}
+	
+	
+	
+	//Implemented on 11/24/2016, new version, to be tested
+	public List<Value> getArguments(Unit targetUnit){
+		List<Value> arguList = new ArrayList<Value>();
+		List<ValueBox> arguBoxes = new ArrayList<ValueBox>();
+		Map<Value,List<ValueBox>> boxMapper = new HashMap<Value,List<ValueBox>>();
+		int arguCounter = 1;
+		int boxCounter = 1;
+		
+		if(targetUnit instanceof InvokeStmt){
+			InvokeStmt is = (InvokeStmt)targetUnit;
+			InvokeExpr ie = is.getInvokeExpr();
+			
+			String methodName = ie.getMethod().getName();
+			if (methodName.equals("findViewById")){
+				arguList = ie.getArgs();
+				
+				for(Value argu : arguList)
+				{
+					System.out.println("Argument " + arguCounter + ": " + argu.toString());
+					arguBoxes = argu.getUseBoxes();
+					for(ValueBox box : arguBoxes)
+					{
+						System.out.println("Box " + boxCounter + ": " + box.toString());
+						boxCounter++;
+					}
+					boxMapper.put(argu, arguBoxes);
+					arguCounter++;
+				}
+			}
+		}
+		
+		return arguList;
+	}
+	
+	
+	
+	
+	
+	
 }
 
 //NOTE: Please feel free to contact Xiang Pan(xiangpan2011@u.northwestern.edu) and Xuechao Du(xcdu@foxmail.com) if there's any problem with the code.
