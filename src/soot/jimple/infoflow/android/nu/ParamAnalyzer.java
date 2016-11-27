@@ -171,7 +171,7 @@ public class ParamAnalyzer {
 		return nonConstants;
 	}
 
-	private boolean isConstant(Value v) {
+	public boolean isConstant(Value v) {
 		// This is super jank. I need to fix this later.
 		return !v.toString().contains("$");
 	}

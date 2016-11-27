@@ -15,6 +15,7 @@ import soot.SootMethod;
 import soot.Unit;
 import soot.Value;
 import soot.ValueBox;
+import soot.jimple.AssignStmt;
 import soot.jimple.InvokeExpr;
 import soot.jimple.Stmt;
 import soot.jimple.infoflow.results.InfoflowResults;
@@ -99,15 +100,19 @@ public class FlowTriggerEventAnalyzer {
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
 			List<Unit> units = orderer.newList(g, false);
 			
-			HashMap<Value, InvokeExpr> localDefs = new HashMap<Value, InvokeExpr>(); // map of local variable => method definition within this method
-			
+			HashMap<Value, InvokeExpr> localInvokeDefs = new HashMap<Value, InvokeExpr>(); // map of local variable => method definition within this method
+			HashMap<Value, Value> localAssignDefs = new HashMap<Value, Value>(); // map of local variable => method definition within this method
+
 			for (Unit u : units) {
 				Stmt s = (Stmt)u;
 				List<ValueBox> defs = s.getDefBoxes();
 				if (s.containsInvokeExpr()) {
 					for (ValueBox defbox : defs) {
-						localDefs.put(defbox.getValue(), s.getInvokeExpr());
+						localInvokeDefs.put(defbox.getValue(), s.getInvokeExpr());
 					}
+				} else if (s instanceof AssignStmt) {
+					AssignStmt as = (AssignStmt)s;
+					localAssignDefs.put(as.getLeftOp(), as.getRightOp());
 				}
 			}
 			
@@ -125,13 +130,41 @@ public class FlowTriggerEventAnalyzer {
 							System.out.println("[NUTEXT] findViewById has non-constant args");
 							List<Value> args = this.paramAnalyzer.getArguments(e);
 							for (Value arg : args) {
-								System.out.println("[NUTEXT] Definition for " + arg.toString() + ": " + localDefs.get(arg).toString());
+								analyzeNonConstantVarDefinition(arg, localInvokeDefs.get(arg), localInvokeDefs, localAssignDefs);
 							}
 						}
 					}
 				}
 			}
 		}
+	}
+	
+	public boolean isThisStmt(Value stmt) {
+		// also super jank. Probably need to fix it.
+		return stmt.toString().contains("this$0");
+	}
+	
+	public void analyzeNonConstantVarDefinition(Value arg, InvokeExpr e, HashMap<Value, InvokeExpr> localInvokeDefs, HashMap<Value, Value> localAssignDefs) {
+		System.out.println("[NUTEXT] Definition for " + arg.toString() + ": " + e.toString() + ", with args of: " + e.getArgs().toString());
+		for (Value param : e.getArgs()) {
+			System.out.println("[NUTEXT] param: " + param.toString());
+			if (localInvokeDefs.containsKey(param)) {
+				System.out.println("[NUTEXT] Arg parameter " + param.toString() + " has definition of: " + localInvokeDefs.get(param).toString());
+			} else if (localAssignDefs.containsKey(param)) {
+				if (isThisStmt(localAssignDefs.get(param))) continue;
+				else {
+					System.out.println("[NUTEXT] Parameter for " + e.toString() + " is not constant.");
+				}
+				System.out.println("[NUTEXT] Arg parameter " + param.toString() + " has definition of: " + localAssignDefs.get(param).toString());
+			} else {
+				if (this.paramAnalyzer.isConstant(param)) {
+					System.out.println("[NUTEXT] Found a constant parameter to definition for non-constant parameter: " + param.toString());
+				} else {
+					System.out.println("[NUTEXT] WARNING: Could not find local definition for a non-constant parameter to a non-constant parameter to findViewById: " + param.toString());
+				}
+			}
+		}
+		
 	}
 	
 	
