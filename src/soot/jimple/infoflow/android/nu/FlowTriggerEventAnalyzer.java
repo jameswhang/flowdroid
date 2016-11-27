@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import soot.Local;
 import soot.Scene;
 import soot.SootMethod;
 import soot.Unit;
@@ -96,19 +97,36 @@ public class FlowTriggerEventAnalyzer {
 			}
 			UnitGraph g = new ExceptionalUnitGraph(triggerMethod.getActiveBody());
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
-			for (Unit u : orderer.newList(g, false)) {
+			List<Unit> units = orderer.newList(g, false);
+			
+			HashMap<Value, InvokeExpr> localDefs = new HashMap<Value, InvokeExpr>(); // map of local variable => method definition within this method
+			
+			for (Unit u : units) {
+				Stmt s = (Stmt)u;
+				List<ValueBox> defs = s.getDefBoxes();
+				if (s.containsInvokeExpr()) {
+					for (ValueBox defbox : defs) {
+						localDefs.put(defbox.getValue(), s.getInvokeExpr());
+					}
+				}
+			}
+			
+			for (Unit u : units) {
 				Stmt s = (Stmt)u;
 				if (s.containsInvokeExpr()) {
 					InvokeExpr e = s.getInvokeExpr();
 					SootMethod m = e.getMethod();
 					if (m.getName().equals("findViewById")) {
 						this.paramAnalyzer.getParameterType(m);
-						
 						System.out.println("[NUTEXT] findViewById trigger method signature: " + triggerMethod.getSignature());
 						if (this.paramAnalyzer.hasConstantArg(e)) {
 							System.out.println("[NUTEXT] findViewById has constant args");
 						} else {
 							System.out.println("[NUTEXT] findViewById has non-constant args");
+							List<Value> args = this.paramAnalyzer.getArguments(e);
+							for (Value arg : args) {
+								System.out.println("[NUTEXT] Definition for " + arg.toString() + ": " + localDefs.get(arg).toString());
+							}
 						}
 					}
 				}

@@ -195,7 +195,6 @@ public class ParamAnalyzer {
 		int boxCounter = 1;
 			
 		String methodName = ie.getMethod().getName();
-		System.out.println("[ParamAnalyzer] Method Name: " + methodName);
 		if (methodName.equals("findViewById")){
 			arguList = ie.getArgs();
 				
