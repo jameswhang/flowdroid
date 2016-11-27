@@ -103,6 +103,7 @@ public class ParamAnalyzer {
 		Set<String> paramTypes = new HashSet<String>();
 		if(method.getName().equals("findViewById")){
 			List<Type> params = method.getParameterTypes();
+			
 			for(Type a : params){
 				if(a.toString().equals("String")||a.toString().equals("int")||a.toString().equals("java.lang.String")){
 					paramTypes.add(a.toString());
@@ -138,7 +139,7 @@ public class ParamAnalyzer {
 		String type = retType.toString();
 		if(type.equals("String")||type.equals("int")||type.equals("java.lang.String")){
 			returnTypes.put(method.getName(), type);
-			System.out.println("Exists constant args for findViewById(): "+type);
+			System.out.println("Exists constant args for findViewById(): " + type + ", method signature: " + method.getSignature());
 		}
 		else{
 			returnTypes.put(method.getName(), type);
@@ -169,40 +170,48 @@ public class ParamAnalyzer {
 		}
 		return nonConstants;
 	}
+
+	private boolean isConstant(Value v) {
+		// This is super jank. I need to fix this later.
+		return !v.toString().contains("$");
+	}
 	
-	
+	public boolean hasConstantArg(InvokeExpr ie) {
+		List<Value> args = getArguments(ie);
+		for (Value v : args) {
+			if (!isConstant(v)) {
+				return false;
+			}
+		}
+		return true;
+	}
 	
 	//Implemented on 11/24/2016, new version, to be tested
-	public List<Value> getArguments(Unit targetUnit){
+	public List<Value> getArguments(InvokeExpr ie){
 		List<Value> arguList = new ArrayList<Value>();
 		List<ValueBox> arguBoxes = new ArrayList<ValueBox>();
 		Map<Value,List<ValueBox>> boxMapper = new HashMap<Value,List<ValueBox>>();
 		int arguCounter = 1;
 		int boxCounter = 1;
-		
-		if(targetUnit instanceof InvokeStmt){
-			InvokeStmt is = (InvokeStmt)targetUnit;
-			InvokeExpr ie = is.getInvokeExpr();
 			
-			String methodName = ie.getMethod().getName();
-			if (methodName.equals("findViewById")){
-				arguList = ie.getArgs();
+		String methodName = ie.getMethod().getName();
+		System.out.println("[ParamAnalyzer] Method Name: " + methodName);
+		if (methodName.equals("findViewById")){
+			arguList = ie.getArgs();
 				
-				for(Value argu : arguList)
+			for(Value argu : arguList)
+			{
+				System.out.println("Argument " + arguCounter + ": " + argu.toString());
+				arguBoxes = argu.getUseBoxes();
+				for(ValueBox box : arguBoxes)
 				{
-					System.out.println("Argument " + arguCounter + ": " + argu.toString());
-					arguBoxes = argu.getUseBoxes();
-					for(ValueBox box : arguBoxes)
-					{
-						System.out.println("Box " + boxCounter + ": " + box.toString());
-						boxCounter++;
-					}
-					boxMapper.put(argu, arguBoxes);
-					arguCounter++;
+					System.out.println("Box " + boxCounter + ": " + box.toString());
+					boxCounter++;
 				}
+				boxMapper.put(argu, arguBoxes);
+				arguCounter++;
 			}
 		}
-		
 		return arguList;
 	}
 	
@@ -219,7 +228,7 @@ public class ParamAnalyzer {
 			UnitGraph g = new ExceptionalUnitGraph(triggerMethod.getActiveBody());
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
 			for (Unit u : orderer.newList(g, false)) {				
-				al = getArguments(u);			
+				//al = getArguments(u);			
 			}
 		}
 	}

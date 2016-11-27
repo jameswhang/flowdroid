@@ -5,12 +5,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import soot.Scene;
 import soot.SootMethod;
 import soot.Unit;
+import soot.Value;
+import soot.ValueBox;
 import soot.jimple.InvokeExpr;
 import soot.jimple.Stmt;
 import soot.jimple.infoflow.results.InfoflowResults;
@@ -51,6 +54,7 @@ public class FlowTriggerEventAnalyzer {
 				if (source.getSource().containsInvokeExpr()) { // is a call to something
 					//System.out.println("[NUTEXT] Looking at source: " + source.getSource().getInvokeExpr().getMethod().getSignature());
 					SootMethod invokedMethod = source.getSource().getInvokeExpr().getMethod();
+					ValueBox invokedValue = source.getSource().getInvokeExprBox();
 					Iterator<Edge> edges = cgraph.edgesInto(invokedMethod);
 					
 					if (edges.hasNext()) {
@@ -62,7 +66,7 @@ public class FlowTriggerEventAnalyzer {
 								this.triggerMethods.add(invokedMethod);
 								srcAdded = true;
 							}
-							System.out.println("[NUTEXT] Found source trigger: "+source+" tiggered by " + triggerMethodFromSource.getSignature());
+							System.out.println("[NUTEXT] Found source trigger: "+source+" tiggered by " + triggerMethodFromSource.getSignature() + " with argument: " + invokedValue.toString());
 						}
 						ArrayList<SootMethod> triggerMethodBetweenSourceAndSink = findTriggerMethodsFromSinkToSource(cgraph, invokedMethod, sink.getSink().getInvokeExpr().getMethod());
 						if (!triggerMethodBetweenSourceAndSink.isEmpty() && !srcAdded) {
@@ -77,6 +81,13 @@ public class FlowTriggerEventAnalyzer {
 			}
 		}
 	}
+	// Manual check for non constant method triggers.
+	/*
+	public void BacktrackMethodCall() {
+		CallGraph cgraph = Scene.v().getCallGraph();
+		for ()
+	}
+	*/
 	
 	public void RunCFGAnalysis() {
 		for (SootMethod triggerMethod : this.triggerMethods) {
@@ -92,7 +103,13 @@ public class FlowTriggerEventAnalyzer {
 					SootMethod m = e.getMethod();
 					if (m.getName().equals("findViewById")) {
 						this.paramAnalyzer.getParameterType(m);
-						System.out.println("[NUTEXT] Found findViewById trigger: " + triggerMethod.getName());
+						
+						System.out.println("[NUTEXT] findViewById trigger method signature: " + triggerMethod.getSignature());
+						if (this.paramAnalyzer.hasConstantArg(e)) {
+							System.out.println("[NUTEXT] findViewById has constant args");
+						} else {
+							System.out.println("[NUTEXT] findViewById has non-constant args");
+						}
 					}
 				}
 			}
