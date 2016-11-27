@@ -207,6 +207,23 @@ public class ParamAnalyzer {
 	}
 	
 	
+	Set<SootMethod> triggerMethods = new HashSet<SootMethod>(); // For temp usage
+	//Modified CFG Analysis, please move it to FlowTriggerEventAnalyzer.java if you think it works fine
+	//Implemented on 11/26/2016, new version, to be tested
+	public void RunCFGAnalysisMod() {
+		List<Value> al = new ArrayList<Value>();
+		for (SootMethod triggerMethod : this.triggerMethods) {
+			if (!triggerMethod.hasActiveBody()) {
+				continue;
+			}
+			UnitGraph g = new ExceptionalUnitGraph(triggerMethod.getActiveBody());
+			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
+			for (Unit u : orderer.newList(g, false)) {				
+				al = getArguments(u);			
+			}
+		}
+	}
+	
 	
 	
 	
