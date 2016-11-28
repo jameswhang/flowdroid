@@ -17,6 +17,7 @@ import soot.Value;
 import soot.ValueBox;
 import soot.jimple.AssignStmt;
 import soot.jimple.InvokeExpr;
+import soot.jimple.ReturnStmt;
 import soot.jimple.Stmt;
 import soot.jimple.infoflow.results.InfoflowResults;
 import soot.jimple.infoflow.results.ResultSinkInfo;
@@ -91,6 +92,33 @@ public class FlowTriggerEventAnalyzer {
 	}
 	*/
 	
+	public HashMap<Value, InvokeExpr> getLocalInvokeDefs(List<Unit> units) {
+		HashMap<Value, InvokeExpr> localInvokeDefs = new HashMap<Value, InvokeExpr>();
+		for (Unit u : units) {
+			Stmt s = (Stmt)u;
+			List<ValueBox> defs = s.getDefBoxes();
+			if (s.containsInvokeExpr()) {
+				for (ValueBox defbox : defs) {
+					localInvokeDefs.put(defbox.getValue(), s.getInvokeExpr());
+				}
+			}
+		}
+		return localInvokeDefs;
+	}
+	
+	public HashMap<Value, Value> getLocalAssignDefs(List<Unit> units) {
+		HashMap<Value, Value> localAssignDefs = new HashMap<Value, Value>();
+		for (Unit u : units) {
+			Stmt s = (Stmt)u;
+			List<ValueBox> defs = s.getDefBoxes();
+			if (s instanceof AssignStmt) {
+				AssignStmt as = (AssignStmt)s;
+				localAssignDefs.put(as.getLeftOp(), as.getRightOp());
+			}
+		}
+		return localAssignDefs;
+	}
+	
 	public void RunCFGAnalysis() {
 		for (SootMethod triggerMethod : this.triggerMethods) {
 			if (!triggerMethod.hasActiveBody()) {
@@ -100,22 +128,9 @@ public class FlowTriggerEventAnalyzer {
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
 			List<Unit> units = orderer.newList(g, false);
 			
-			HashMap<Value, InvokeExpr> localInvokeDefs = new HashMap<Value, InvokeExpr>(); // map of local variable => method definition within this method
-			HashMap<Value, Value> localAssignDefs = new HashMap<Value, Value>(); // map of local variable => method definition within this method
+			HashMap<Value, InvokeExpr> localInvokeDefs = getLocalInvokeDefs(units); // map of local variable => method definition within this method
+			HashMap<Value, Value> localAssignDefs = getLocalAssignDefs(units); // map of local variable => method definition within this method
 
-			for (Unit u : units) {
-				Stmt s = (Stmt)u;
-				List<ValueBox> defs = s.getDefBoxes();
-				if (s.containsInvokeExpr()) {
-					for (ValueBox defbox : defs) {
-						localInvokeDefs.put(defbox.getValue(), s.getInvokeExpr());
-					}
-				} else if (s instanceof AssignStmt) {
-					AssignStmt as = (AssignStmt)s;
-					localAssignDefs.put(as.getLeftOp(), as.getRightOp());
-				}
-			}
-			
 			for (Unit u : units) {
 				Stmt s = (Stmt)u;
 				if (s.containsInvokeExpr()) {
@@ -127,10 +142,16 @@ public class FlowTriggerEventAnalyzer {
 						if (this.paramAnalyzer.hasConstantArg(e)) {
 							System.out.println("[NUTEXT] findViewById has constant args");
 						} else {
-							System.out.println("[NUTEXT] findViewById has non-constant args");
+							//System.out.println("[NUTEXT] findViewById has non-constant args");
 							List<Value> args = this.paramAnalyzer.getArguments(e);
 							for (Value arg : args) {
 								analyzeNonConstantVarDefinition(arg, localInvokeDefs.get(arg), localInvokeDefs, localAssignDefs);
+								System.out.println("[NUTEXT] Invoked method: " + localInvokeDefs.get(arg).getMethod().toString());
+								if (hasConstantDefinition(localInvokeDefs.get(arg).getMethod())) {
+									System.out.println("[NUTEXT] findViewById has constant args");
+								} else {
+									System.out.println("[NUTEXT] findViewById has non-constant args");
+								}
 							}
 						}
 					}
@@ -139,19 +160,50 @@ public class FlowTriggerEventAnalyzer {
 		}
 	}
 	
+	public boolean hasConstantDefinition(SootMethod m) {
+		if (!m.hasActiveBody()) {
+			return false;
+		} else {
+			UnitGraph g = new ExceptionalUnitGraph(m.getActiveBody());
+			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
+			List<Unit> units = orderer.newList(g, true);
+			
+			HashMap<Value, InvokeExpr> localInvokeDefs = getLocalInvokeDefs(units); // map of local variable => method definition within this method
+			HashMap<Value, Value> localAssignDefs = getLocalAssignDefs(units); // map of local variable => method definition within this method
+
+			for (Unit unit : units) {
+				Stmt s = (Stmt)unit;
+				if (s instanceof ReturnStmt) {
+					ReturnStmt rs = (ReturnStmt)s;
+					Value returnVal = rs.getOp();
+					if (localInvokeDefs.containsKey(returnVal)) {
+						InvokeExpr ie = localInvokeDefs.get(returnVal);
+						//System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " which invokes: " + ie.toString());
+						return hasConstantDefinition(ie.getMethod());
+					} else if (localAssignDefs.containsKey(rs.getOp())) {
+						//System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " defined by: " + localAssignDefs.get(rs.getOp()).toString());
+					} else {
+						//System.out.println("[NUTEXT] Returns: " + rs.getOp().toString());
+						return this.paramAnalyzer.isConstant(returnVal);
+					}
+				}
+			}
+		}
+		return true;
+	}
+	
 	public boolean isThisStmt(Value stmt) {
-		// also super jank. Probably need to fix it.
+		// TODO: also super jank. Probably need to fix it.
 		return stmt.toString().contains("this$0");
 	}
 	
 	public void analyzeNonConstantVarDefinition(Value arg, InvokeExpr e, HashMap<Value, InvokeExpr> localInvokeDefs, HashMap<Value, Value> localAssignDefs) {
 		System.out.println("[NUTEXT] Definition for " + arg.toString() + ": " + e.toString() + ", with args of: " + e.getArgs().toString());
 		for (Value param : e.getArgs()) {
-			System.out.println("[NUTEXT] param: " + param.toString());
 			if (localInvokeDefs.containsKey(param)) {
 				System.out.println("[NUTEXT] Arg parameter " + param.toString() + " has definition of: " + localInvokeDefs.get(param).toString());
-			} else if (localAssignDefs.containsKey(param)) {
-				if (isThisStmt(localAssignDefs.get(param))) continue;
+			} else if (localAssignDefs.containsKey(param)) { // Assignment definitions. (i.e. $r4 = $r0)
+				if (isThisStmt(localAssignDefs.get(param))) continue; // By default, method invocation like "this.someMethod(anArg)" will get translated into 2 parameters in Jimple, first one being the "this" keyword in Java
 				else {
 					System.out.println("[NUTEXT] Parameter for " + e.toString() + " is not constant.");
 				}
