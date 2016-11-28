@@ -1,5 +1,6 @@
 package soot.jimple.infoflow.android.nu;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +20,7 @@ import soot.jimple.AssignStmt;
 import soot.jimple.InvokeExpr;
 import soot.jimple.ReturnStmt;
 import soot.jimple.Stmt;
+import soot.jimple.infoflow.android.resources.ARSCFileParser;
 import soot.jimple.infoflow.results.InfoflowResults;
 import soot.jimple.infoflow.results.ResultSinkInfo;
 import soot.jimple.infoflow.results.ResultSourceInfo;
@@ -37,7 +39,9 @@ public class FlowTriggerEventAnalyzer {
 	private InfoflowResults infoflowResult;
 	private StaticValueService staticValueService;
 	private Set<SootMethod> triggerMethods;
+	private HashMap<SootMethod, View> flowToView;
 	private ParamAnalyzer paramAnalyzer;
+	private ARSCFileParser arscParser;
 	
 	public FlowTriggerEventAnalyzer(InfoflowResults results, String apkFileLocation) {
 		this.infoflowResult = results;
@@ -46,6 +50,12 @@ public class FlowTriggerEventAnalyzer {
 		this.staticValueService = new StaticValueService();
 		this.triggerMethods = new HashSet<SootMethod>();
 		this.paramAnalyzer = new ParamAnalyzer();
+		this.arscParser = new ARSCFileParser();
+		try {
+			arscParser.parse(apkFileLocation);
+		} catch (Exception e) {
+			System.out.println("Failed to init FlowTriggerEventAnalyzer");
+		}
 	}
 	
 	public void RunCallGraphAnalysis() {
@@ -84,13 +94,6 @@ public class FlowTriggerEventAnalyzer {
 			}
 		}
 	}
-	// Manual check for non constant method triggers.
-	/*
-	public void BacktrackMethodCall() {
-		CallGraph cgraph = Scene.v().getCallGraph();
-		for ()
-	}
-	*/
 	
 	public HashMap<Value, InvokeExpr> getLocalInvokeDefs(List<Unit> units) {
 		HashMap<Value, InvokeExpr> localInvokeDefs = new HashMap<Value, InvokeExpr>();
@@ -147,10 +150,11 @@ public class FlowTriggerEventAnalyzer {
 							for (Value arg : args) {
 								analyzeNonConstantVarDefinition(arg, localInvokeDefs.get(arg), localInvokeDefs, localAssignDefs);
 								System.out.println("[NUTEXT] Invoked method: " + localInvokeDefs.get(arg).getMethod().toString());
-								if (hasConstantDefinition(localInvokeDefs.get(arg).getMethod())) {
-									System.out.println("[NUTEXT] findViewById has constant args");
+								ConstantDefResult cdr = hasConstantDefinition(localInvokeDefs.get(arg).getMethod());
+								if (cdr.isConstant) {
+									System.out.println("[NUTEXT] findViewById has constant args: " + cdr.id.toString());
 								} else {
-									System.out.println("[NUTEXT] findViewById has non-constant args");
+									System.out.println("[NUTEXT] findViewById has non-constant args that cannot be determined statically");
 								}
 							}
 						}
@@ -160,9 +164,9 @@ public class FlowTriggerEventAnalyzer {
 		}
 	}
 	
-	public boolean hasConstantDefinition(SootMethod m) {
+	public ConstantDefResult hasConstantDefinition(SootMethod m) {
 		if (!m.hasActiveBody()) {
-			return false;
+			return new ConstantDefResult(null, false);
 		} else {
 			UnitGraph g = new ExceptionalUnitGraph(m.getActiveBody());
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
@@ -184,12 +188,17 @@ public class FlowTriggerEventAnalyzer {
 						//System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " defined by: " + localAssignDefs.get(rs.getOp()).toString());
 					} else {
 						//System.out.println("[NUTEXT] Returns: " + rs.getOp().toString());
-						return this.paramAnalyzer.isConstant(returnVal);
+						if(this.paramAnalyzer.isConstant(returnVal)) {
+							return new ConstantDefResult(returnVal, true);
+						} else {
+							return new ConstantDefResult(null, false);
+						}
 					}
 				}
 			}
+			System.out.println("[NUTEXT] WARNING: retrieving constant value from a method without return statement.");
+			return new ConstantDefResult(null, false);
 		}
-		return true;
 	}
 	
 	public boolean isThisStmt(Value stmt) {
