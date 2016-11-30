@@ -147,7 +147,6 @@ public class LayoutFileParserForTextExtraction extends AbstractResourceParser {
 			protected void internalTransform(String phaseName, @SuppressWarnings("rawtypes") Map options) {
 				parseLayoutFileDirect(fileName);
 			}
-		});
 		PackManager.v().getPack("wjtp").add(transform);
 	}*/
 	
@@ -499,7 +498,4 @@ public class LayoutFileParserForTextExtraction extends AbstractResourceParser {
 				traverseTextTreeHelper(child, level+1);
 		}
 	}
-
-	
-	
 }

@@ -200,11 +200,11 @@ public class ParamAnalyzer {
 				
 			for(Value argu : arguList)
 			{
-				System.out.println("Argument " + arguCounter + ": " + argu.toString());
+				//System.out.println("Argument " + arguCounter + ": " + argu.toString());
 				arguBoxes = argu.getUseBoxes();
 				for(ValueBox box : arguBoxes)
 				{
-					System.out.println("Box " + boxCounter + ": " + box.toString());
+					//System.out.println("Box " + boxCounter + ": " + box.toString());
 					boxCounter++;
 				}
 				boxMapper.put(argu, arguBoxes);

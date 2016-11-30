@@ -44,6 +44,7 @@ import soot.jimple.infoflow.android.data.AndroidMethod;
 import soot.jimple.infoflow.android.data.parsers.PermissionMethodParser;
 import soot.jimple.infoflow.android.manifest.ProcessManifest;
 import soot.jimple.infoflow.android.nu.FlowTriggerEventAnalyzer;
+import soot.jimple.infoflow.android.nu.LayoutFileParserForTextExtraction;
 import soot.jimple.infoflow.android.resources.ARSCFileParser;
 import soot.jimple.infoflow.android.resources.ARSCFileParser.AbstractResource;
 import soot.jimple.infoflow.android.resources.ARSCFileParser.StringResource;
@@ -851,6 +852,32 @@ public class SetupApplication {
 		FlowTriggerEventAnalyzer fteAnalyzer = new FlowTriggerEventAnalyzer(results, apkFileLocation);
 		fteAnalyzer.RunCallGraphAnalysis();
 		fteAnalyzer.RunCFGAnalysis();
+		
+		Set<Integer> ids = fteAnalyzer.getIDs(); // All IDs of findViewByIDs that can be found statically 
+		System.out.println("FOUND IDS");
+		System.out.println(ids);
+		
+		
+		ARSCFileParser resParser = new ARSCFileParser();
+		try {
+			resParser.parse(apkFileLocation);
+		} catch (Exception e) {
+			System.err.println("NULIST: failed to init FlowTriggerEventAnalyzer: ARSCFileParser");
+			e.printStackTrace();
+		}
+		//this.resourcePackages = resParser.getPackages();	
+		
+		LayoutFileParserForTextExtraction lfpTE = new LayoutFileParserForTextExtraction(this.appPackageName, resParser);
+		lfpTE.parseLayoutFileForTextExtraction(apkFileLocation);
+		Map<Integer, List<String>> id2Texts = lfpTE.getId2Texts();
+		for(Integer id : id2Texts.keySet()){
+			for(String msg : id2Texts.get(id)) {
+				if (ids.contains(id)) {
+					System.out.println("VIEWTEXT: "+id+" -> "+msg);	
+				}
+			}
+		}
+		
 		System.out.println("******* [NU OUTPUT END] ********");
 	}
 

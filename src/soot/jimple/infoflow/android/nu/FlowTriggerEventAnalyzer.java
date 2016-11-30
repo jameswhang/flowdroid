@@ -39,9 +39,9 @@ public class FlowTriggerEventAnalyzer {
 	private InfoflowResults infoflowResult;
 	private StaticValueService staticValueService;
 	private Set<SootMethod> triggerMethods;
-	private HashMap<SootMethod, View> flowToView;
 	private ParamAnalyzer paramAnalyzer;
 	private ARSCFileParser arscParser;
+	private Set<Integer> IDs; 
 	
 	public FlowTriggerEventAnalyzer(InfoflowResults results, String apkFileLocation) {
 		this.infoflowResult = results;
@@ -51,11 +51,16 @@ public class FlowTriggerEventAnalyzer {
 		this.triggerMethods = new HashSet<SootMethod>();
 		this.paramAnalyzer = new ParamAnalyzer();
 		this.arscParser = new ARSCFileParser();
+		this.IDs = new HashSet<Integer>();
 		try {
 			arscParser.parse(apkFileLocation);
 		} catch (Exception e) {
 			System.out.println("Failed to init FlowTriggerEventAnalyzer");
 		}
+	}
+	
+	public Set<Integer> getIDs() {
+		return this.IDs;
 	}
 	
 	public void RunCallGraphAnalysis() {
@@ -113,7 +118,6 @@ public class FlowTriggerEventAnalyzer {
 		HashMap<Value, Value> localAssignDefs = new HashMap<Value, Value>();
 		for (Unit u : units) {
 			Stmt s = (Stmt)u;
-			List<ValueBox> defs = s.getDefBoxes();
 			if (s instanceof AssignStmt) {
 				AssignStmt as = (AssignStmt)s;
 				localAssignDefs.put(as.getLeftOp(), as.getRightOp());
@@ -143,7 +147,8 @@ public class FlowTriggerEventAnalyzer {
 						this.paramAnalyzer.getParameterType(m);
 						System.out.println("[NUTEXT] findViewById trigger method signature: " + triggerMethod.getSignature());
 						if (this.paramAnalyzer.hasConstantArg(e)) {
-							System.out.println("[NUTEXT] findViewById has constant args");
+							System.out.println("[NUTEXT] findViewById has constant args: " + e.getArg(0).toString());
+							this.IDs.add(Integer.parseInt(e.getArg(0).toString()));
 						} else {
 							//System.out.println("[NUTEXT] findViewById has non-constant args");
 							List<Value> args = this.paramAnalyzer.getArguments(e);
@@ -153,6 +158,7 @@ public class FlowTriggerEventAnalyzer {
 								ConstantDefResult cdr = hasConstantDefinition(localInvokeDefs.get(arg).getMethod());
 								if (cdr.isConstant) {
 									System.out.println("[NUTEXT] findViewById has constant args: " + cdr.id.toString());
+									this.IDs.add(Integer.parseInt(cdr.id.toString()));
 								} else {
 									System.out.println("[NUTEXT] findViewById has non-constant args that cannot be determined statically");
 								}
@@ -171,6 +177,7 @@ public class FlowTriggerEventAnalyzer {
 			UnitGraph g = new ExceptionalUnitGraph(m.getActiveBody());
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
 			List<Unit> units = orderer.newList(g, true);
+			System.out.println("Analyzing body of" + m.getActiveBody().toString());
 			
 			HashMap<Value, InvokeExpr> localInvokeDefs = getLocalInvokeDefs(units); // map of local variable => method definition within this method
 			HashMap<Value, Value> localAssignDefs = getLocalAssignDefs(units); // map of local variable => method definition within this method
@@ -182,12 +189,21 @@ public class FlowTriggerEventAnalyzer {
 					Value returnVal = rs.getOp();
 					if (localInvokeDefs.containsKey(returnVal)) {
 						InvokeExpr ie = localInvokeDefs.get(returnVal);
-						//System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " which invokes: " + ie.toString());
+						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " which invokes: " + ie.toString());
 						return hasConstantDefinition(ie.getMethod());
 					} else if (localAssignDefs.containsKey(rs.getOp())) {
-						//System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " defined by: " + localAssignDefs.get(rs.getOp()).toString());
+						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " defined by: " + localAssignDefs.get(rs.getOp()).toString());
+						Value assignVal = localAssignDefs.get(returnVal);
+						if (localInvokeDefs.containsKey(assignVal)) {
+							System.out.println("local invocation for " + assignVal.toString() + " by invoking " + localInvokeDefs.get(assignVal).toString());
+						} else if (localAssignDefs.containsKey(assignVal)) {
+							System.out.println("local assignment: " + assignVal.toString());
+						} else {
+							System.out.println("Cannot find definition...");
+							System.out.println(m.getActiveBody().toString());
+						}
 					} else {
-						//System.out.println("[NUTEXT] Returns: " + rs.getOp().toString());
+						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString());
 						if(this.paramAnalyzer.isConstant(returnVal)) {
 							return new ConstantDefResult(returnVal, true);
 						} else {
