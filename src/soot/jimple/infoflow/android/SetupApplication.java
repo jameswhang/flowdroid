@@ -857,7 +857,6 @@ public class SetupApplication {
 		System.out.println("FOUND IDS");
 		System.out.println(ids);
 		
-		
 		ARSCFileParser resParser = new ARSCFileParser();
 		try {
 			resParser.parse(apkFileLocation);
@@ -873,11 +872,12 @@ public class SetupApplication {
 		for(Integer id : id2Texts.keySet()){
 			for(String msg : id2Texts.get(id)) {
 				if (ids.contains(id)) {
-					System.out.println("VIEWTEXT: "+id+" -> "+msg);	
+					System.out.println("KNOWNVIEWTEXT for findViewById: "+id+" -> "+msg);	
+				} else {
+					System.out.println("NOTASSOCIATEDVIEWTEXT: " + id + " -> " + msg);
 				}
 			}
 		}
-		
 		System.out.println("******* [NU OUTPUT END] ********");
 	}
 

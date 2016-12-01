@@ -7,7 +7,7 @@ import java.util.Set;
 public class StaticValueService {
 
 	private String[] UIEventActions = {
-			"onClick", "onLongClick", "onTouch", "onFocusChange", "onKey", "onTouch", "onKeyDown", "onKeyDown", "onKeyUp", "onTrackballEvent", "onTouchEvent", "onFocusChanged"
+			"onClick", "onLongClick", "onTouch", "onFocusChange", "onKey", "onTouch", "onKeyDown", "onKeyDown", "onKeyUp", "onTrackballEvent", "onTouchEvent", "onFocusChanged", "onCreate", "onPostCreate", "onResume", "onSaveInstanceState", "onRestoreInstanceState"
 	};
 	
 	private String[] UIEventListenerMethods = {

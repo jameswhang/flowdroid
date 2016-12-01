@@ -164,6 +164,8 @@ public class FlowTriggerEventAnalyzer {
 								}
 							}
 						}
+					} else if (m.getName().equals("setContentView")) {
+						System.out.println("**** Method signature: " + m.getSignature() + "*****");
 					}
 				}
 			}
