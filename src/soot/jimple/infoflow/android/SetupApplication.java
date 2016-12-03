@@ -861,7 +861,6 @@ public class SetupApplication {
 			this.resPackageTypesMap = new HashMap<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>>();
 			for(ARSCFileParser.ResPackage pkg : resourcePackages){
 				this.resPackageTypesMap.put(pkg, pkg.getDeclaredTypes());
-				System.out.println("PACKAGE NAME!!!! "+pkg.getPackageName());
 			}
 		}
 		
