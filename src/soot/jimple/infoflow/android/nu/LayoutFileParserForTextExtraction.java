@@ -43,6 +43,8 @@ public class LayoutFileParserForTextExtraction extends AbstractResourceParser {
 	private final Map<Integer, List<String>> id2Texts = new HashMap<Integer, List<String>>();
 	//filename -> LayoutTextTree
 	private final Map<String, LayoutTextTreeNode> textTreeMap = new HashMap<String, LayoutTextTreeNode>();
+	//resource package -> list of resource types found in pkg
+	Map<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> resPackageTypesMap = new HashMap<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>>();
 	
 	private final String packageName;
 	private final ARSCFileParser resParser;
@@ -55,6 +57,10 @@ public class LayoutFileParserForTextExtraction extends AbstractResourceParser {
 	public LayoutFileParserForTextExtraction(String packageName, ARSCFileParser resParser) {
 		this.packageName = packageName;
 		this.resParser = resParser;
+		
+		for(ARSCFileParser.ResPackage pkg : this.resParser.getPackages()){
+			resPackageTypesMap.put(pkg, pkg.getDeclaredTypes());
+		}
 	}
 	
 	private boolean isRealClass(SootClass sc) {
@@ -250,29 +256,40 @@ public class LayoutFileParserForTextExtraction extends AbstractResourceParser {
 		});
 	}
 	
+	/**
+	 * Looks through all resources and returns first that matches given name string
+	 */
 	public int findResourceIDByName(String name){
-		// Setup data structures if necessary
-		Map<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> resPackageTypesMap = new HashMap<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>>();
-		for(ARSCFileParser.ResPackage pkg : resParser.getPackages()){
-			resPackageTypesMap.put(pkg, pkg.getDeclaredTypes());
-		}
-		
-		// Look through all resources, return first that matches name
 		for(Map.Entry<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> entry : resPackageTypesMap.entrySet()){
 			for(ARSCFileParser.ResType type : entry.getValue()){
-				for(AbstractResource r : type.getAllResources()) {
-					//System.out.println("resource name: " + r.getResourceName());
-				}
 				ARSCFileParser.AbstractResource resource = type.getResourceByName(name);
 				if(resource != null){
-					System.out.println("Found resource");
+					System.out.println("Found resource ID from name");
 					System.out.println("Resource ID:" + resource.getResourceID());
 					return resource.getResourceID();
 				}
 			}
 		}
-		System.out.println("Coudln't find the resource");
+		System.out.println("Couldn't find the resource");
 		return -1;
+	}
+	
+	/**
+	 * Looks through all resources and returns first that matches given ID number
+	 */
+	public String findResourceNameById(int id){
+		for(Map.Entry<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> entry : resPackageTypesMap.entrySet()){
+			for(ARSCFileParser.ResType type : entry.getValue()){
+				ARSCFileParser.AbstractResource resource = type.getFirstResource(id);
+				if(resource != null){
+					System.out.println("Found resource name from ID");
+					System.out.println("Resource name:" + resource.getResourceName());
+					return resource.getResourceName();
+				}
+			}
+		}
+		System.out.println("Couldn't find the resource");
+		return null;
 	}
 	
 

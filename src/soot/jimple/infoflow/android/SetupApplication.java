@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -84,7 +83,6 @@ public class SetupApplication {
 	private Set<String> callbackClasses = null;
 
 	private List<ARSCFileParser.ResPackage> resourcePackages = null;
-	private Map<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> resPackageTypesMap = null;
 	private String appPackageName = "";
 
 	private final String androidJar;
@@ -849,10 +847,6 @@ public class SetupApplication {
 		return info.getResults();
 	}	
 	
-	/**
-	 * Finds and returns instance of AbstractResource given resource name
-	 */
-
 	private void analyzeInfoFlowResult(InfoflowResults results, String apkFileLocation) {
 		System.out.println("******* [NU OUTPUT BEGIN] ********");
 		FlowTriggerEventAnalyzer fteAnalyzer = new FlowTriggerEventAnalyzer(results, apkFileLocation);
@@ -874,8 +868,11 @@ public class SetupApplication {
 		LayoutFileParserForTextExtraction lfpTE = new LayoutFileParserForTextExtraction(this.appPackageName, resParser);
 		lfpTE.parseLayoutFileForTextExtraction(apkFileLocation);
 		Map<Integer, List<String>> id2Texts = lfpTE.getId2Texts();
+//		
+//		int custom_title_id = lfpTE.findResourceIDByName("wallpaper"); 
+//		String custom_title_name = lfpTE.findResourceNameById(custom_title_id);
+//		
 		
-		//int custom_title_id = lfpTE.findResourceIDByName("custom_title"); testing 
 		for(Integer id : id2Texts.keySet()){
 			for(String msg : id2Texts.get(id)) {
 				if (ids.contains(id)) {
