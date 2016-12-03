@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -83,6 +84,7 @@ public class SetupApplication {
 	private Set<String> callbackClasses = null;
 
 	private List<ARSCFileParser.ResPackage> resourcePackages = null;
+	private Map<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> resPackageTypesMap = null;
 	private String appPackageName = "";
 
 	private final String androidJar;
@@ -847,6 +849,34 @@ public class SetupApplication {
 		return info.getResults();
 	}	
 	
+	/**
+	 * Finds and returns instance of AbstractResource given resource name
+	 */
+	private ARSCFileParser.AbstractResource findResourceByName(ARSCFileParser resParser, String name){
+		// Setup data structures if necessary
+		if(this.resourcePackages == null){
+			this.resourcePackages = resParser.getPackages();
+		}
+		if(this.resPackageTypesMap == null){
+			this.resPackageTypesMap = new HashMap<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>>();
+			for(ARSCFileParser.ResPackage pkg : resourcePackages){
+				this.resPackageTypesMap.put(pkg, pkg.getDeclaredTypes());
+				System.out.println("PACKAGE NAME!!!! "+pkg.getPackageName());
+			}
+		}
+		
+		// Look through all resources, return first that matches name
+		for(Map.Entry<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> entry : resPackageTypesMap.entrySet()){
+			for(ARSCFileParser.ResType type : entry.getValue()){
+				ARSCFileParser.AbstractResource resource = type.getResourceByName(name);
+				if(resource != null){
+					return resource;
+				}
+			}
+		}
+		return null;
+	}
+	
 	private void analyzeInfoFlowResult(InfoflowResults results, String apkFileLocation) {
 		System.out.println("******* [NU OUTPUT BEGIN] ********");
 		FlowTriggerEventAnalyzer fteAnalyzer = new FlowTriggerEventAnalyzer(results, apkFileLocation);
@@ -864,7 +894,6 @@ public class SetupApplication {
 			System.err.println("NULIST: failed to init FlowTriggerEventAnalyzer: ARSCFileParser");
 			e.printStackTrace();
 		}
-		//this.resourcePackages = resParser.getPackages();	
 		
 		LayoutFileParserForTextExtraction lfpTE = new LayoutFileParserForTextExtraction(this.appPackageName, resParser);
 		lfpTE.parseLayoutFileForTextExtraction(apkFileLocation);
