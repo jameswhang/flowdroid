@@ -249,6 +249,32 @@ public class LayoutFileParserForTextExtraction extends AbstractResourceParser {
 			}
 		});
 	}
+	
+	public int findResourceIDByName(String name){
+		// Setup data structures if necessary
+		Map<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> resPackageTypesMap = new HashMap<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>>();
+		for(ARSCFileParser.ResPackage pkg : resParser.getPackages()){
+			resPackageTypesMap.put(pkg, pkg.getDeclaredTypes());
+		}
+		
+		// Look through all resources, return first that matches name
+		for(Map.Entry<ARSCFileParser.ResPackage, List<ARSCFileParser.ResType>> entry : resPackageTypesMap.entrySet()){
+			for(ARSCFileParser.ResType type : entry.getValue()){
+				for(AbstractResource r : type.getAllResources()) {
+					//System.out.println("resource name: " + r.getResourceName());
+				}
+				ARSCFileParser.AbstractResource resource = type.getResourceByName(name);
+				if(resource != null){
+					System.out.println("Found resource");
+					System.out.println("Resource ID:" + resource.getResourceID());
+					return resource.getResourceID();
+				}
+			}
+		}
+		System.out.println("Coudln't find the resource");
+		return -1;
+	}
+	
 
 	/**
 	 * Parses the layout file with the given root node
