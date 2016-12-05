@@ -41,7 +41,9 @@ public class FlowTriggerEventAnalyzer {
 	private Set<SootMethod> triggerMethods;
 	private ParamAnalyzer paramAnalyzer;
 	private ARSCFileParser arscParser;
+	private NonConstantMethodAnalyzer ncAnalyzer;
 	private Set<Integer> IDs; 
+	private Set<String> nonConstantKnownMethods;
 	
 	public FlowTriggerEventAnalyzer(InfoflowResults results, String apkFileLocation) {
 		this.infoflowResult = results;
@@ -49,9 +51,13 @@ public class FlowTriggerEventAnalyzer {
 		this.apkFileLocation = apkFileLocation;
 		this.staticValueService = new StaticValueService();
 		this.triggerMethods = new HashSet<SootMethod>();
-		this.paramAnalyzer = new ParamAnalyzer();
-		this.arscParser = new ARSCFileParser();
+		this.paramAnalyzer = new ParamAnalyzer(); // parameter type&value analyzer
+		this.arscParser = new ARSCFileParser(); // ARSC file parser
+		this.ncAnalyzer = new NonConstantMethodAnalyzer(); // non-constant return value analyzer
+		
 		this.IDs = new HashSet<Integer>();
+		this.nonConstantKnownMethods = ncAnalyzer.getAllNonConstantMethods();
+		
 		try {
 			arscParser.parse(apkFileLocation);
 		} catch (Exception e) {
@@ -153,7 +159,8 @@ public class FlowTriggerEventAnalyzer {
 							//System.out.println("[NUTEXT] findViewById has non-constant args");
 							List<Value> args = this.paramAnalyzer.getArguments(e);
 							for (Value arg : args) {
-								analyzeNonConstantVarDefinition(arg, localInvokeDefs.get(arg), localInvokeDefs, localAssignDefs);
+								ArrayList<Value> params = analyzeNonConstantVarDefinition(arg, localInvokeDefs.get(arg), localInvokeDefs, localAssignDefs);
+								System.out.println("[NUTEXT] Extracted parameters: " + params.toString());
 								System.out.println("[NUTEXT] Invoked method: " + localInvokeDefs.get(arg).getMethod().toString());
 								ConstantDefResult cdr = hasConstantDefinition(localInvokeDefs.get(arg).getMethod());
 								if (cdr.isConstant) {
@@ -173,7 +180,9 @@ public class FlowTriggerEventAnalyzer {
 	}
 	
 	public ConstantDefResult hasConstantDefinition(SootMethod m) {
-		if (!m.hasActiveBody()) {
+		if (this.nonConstantKnownMethods.contains(m.getName())) {
+			return this.ncAnalyzer.analyze(m);
+		} else if (!m.hasActiveBody()) {
 			return new ConstantDefResult(null, false);
 		} else {
 			UnitGraph g = new ExceptionalUnitGraph(m.getActiveBody());
@@ -224,11 +233,13 @@ public class FlowTriggerEventAnalyzer {
 		return stmt.toString().contains("this$0");
 	}
 	
-	public void analyzeNonConstantVarDefinition(Value arg, InvokeExpr e, HashMap<Value, InvokeExpr> localInvokeDefs, HashMap<Value, Value> localAssignDefs) {
+	public ArrayList<Value> analyzeNonConstantVarDefinition(Value arg, InvokeExpr e, HashMap<Value, InvokeExpr> localInvokeDefs, HashMap<Value, Value> localAssignDefs) {
+		ArrayList<Value> args = new ArrayList<Value>();
 		System.out.println("[NUTEXT] Definition for " + arg.toString() + ": " + e.toString() + ", with args of: " + e.getArgs().toString());
 		for (Value param : e.getArgs()) {
 			if (localInvokeDefs.containsKey(param)) {
 				System.out.println("[NUTEXT] Arg parameter " + param.toString() + " has definition of: " + localInvokeDefs.get(param).toString());
+				
 			} else if (localAssignDefs.containsKey(param)) { // Assignment definitions. (i.e. $r4 = $r0)
 				if (isThisStmt(localAssignDefs.get(param))) continue; // By default, method invocation like "this.someMethod(anArg)" will get translated into 2 parameters in Jimple, first one being the "this" keyword in Java
 				else {
@@ -238,12 +249,13 @@ public class FlowTriggerEventAnalyzer {
 			} else {
 				if (this.paramAnalyzer.isConstant(param)) {
 					System.out.println("[NUTEXT] Found a constant parameter to definition for non-constant parameter: " + param.toString());
+					args.add(param);
 				} else {
 					System.out.println("[NUTEXT] WARNING: Could not find local definition for a non-constant parameter to a non-constant parameter to findViewById: " + param.toString());
 				}
 			}
 		}
-		
+		return args;
 	}
 	
 	
