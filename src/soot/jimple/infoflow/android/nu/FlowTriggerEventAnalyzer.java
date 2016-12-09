@@ -17,9 +17,14 @@ import soot.Unit;
 import soot.Value;
 import soot.ValueBox;
 import soot.jimple.AssignStmt;
+import soot.jimple.DefinitionStmt;
+import soot.jimple.IdentityRef;
+import soot.jimple.IdentityStmt;
 import soot.jimple.InvokeExpr;
+import soot.jimple.ParameterRef;
 import soot.jimple.ReturnStmt;
 import soot.jimple.Stmt;
+import soot.jimple.StringConstant;
 import soot.jimple.infoflow.android.resources.ARSCFileParser;
 import soot.jimple.infoflow.results.InfoflowResults;
 import soot.jimple.infoflow.results.ResultSinkInfo;
@@ -45,7 +50,7 @@ public class FlowTriggerEventAnalyzer {
 	private Set<Integer> IDs; 
 	private Set<String> nonConstantKnownMethods;
 	
-	public FlowTriggerEventAnalyzer(InfoflowResults results, String apkFileLocation) {
+	public FlowTriggerEventAnalyzer(InfoflowResults results, String apkFileLocation, LayoutFileParserForTextExtraction lfpTE) {
 		this.infoflowResult = results;
 		this.infoflowResultMap = results.getResults();
 		this.apkFileLocation = apkFileLocation;
@@ -53,7 +58,7 @@ public class FlowTriggerEventAnalyzer {
 		this.triggerMethods = new HashSet<SootMethod>();
 		this.paramAnalyzer = new ParamAnalyzer(); // parameter type&value analyzer
 		this.arscParser = new ARSCFileParser(); // ARSC file parser
-		this.ncAnalyzer = new NonConstantMethodAnalyzer(); // non-constant return value analyzer
+		this.ncAnalyzer = new NonConstantMethodAnalyzer(lfpTE); // non-constant return value analyzer
 		
 		this.IDs = new HashSet<Integer>();
 		this.nonConstantKnownMethods = ncAnalyzer.getAllNonConstantMethods();
@@ -106,6 +111,42 @@ public class FlowTriggerEventAnalyzer {
 		}
 	}
 	
+	public HashMap<Value, Value> getParameterRefs(List<Unit> units) {
+		HashMap<Value, Value> paramRefs = new HashMap<Value, Value>(); 
+		for (Unit u : units) {
+			Stmt s = (Stmt)u;
+			if (s instanceof ParameterRef) {
+				System.out.println("FOUND PARAMETERREF: " + s);
+			}
+		}
+		return paramRefs;
+	}
+	
+	public HashMap<Value, Value> getDefinitions(List<Unit> units, Unit u) {
+		/*
+		 * Finds all defintion stmts such as 
+		 * $r0 := @parameter0 : java.lang.String
+		 * @param List<Unit> units : List of units generated from a PseudoTopologicalOrderer on a SootMethod
+		 * @param Unit u : If not null, find all units that happen before the definition of this unit
+		 */
+		HashMap<Value, Value> definitions = new HashMap<Value, Value>();
+		boolean uStmtFound = false;
+		if (u == null) {
+			uStmtFound = true;
+		}
+		for (Unit unit : units) {
+			Stmt s = (Stmt)unit; 
+			if (uStmtFound && s instanceof DefinitionStmt) {
+				DefinitionStmt ds = (DefinitionStmt)s;
+				//System.out.println("Found definition: " + ds.getLeftOp() + " := " + ds.getRightOp());
+				definitions.put(ds.getLeftOp(), ds.getRightOp());
+			} else if (!uStmtFound && unit.equals(u)) {
+				uStmtFound = true;
+			}
+		}
+		return definitions;
+	}
+	
 	public HashMap<Value, InvokeExpr> getLocalInvokeDefs(List<Unit> units) {
 		HashMap<Value, InvokeExpr> localInvokeDefs = new HashMap<Value, InvokeExpr>();
 		for (Unit u : units) {
@@ -127,6 +168,11 @@ public class FlowTriggerEventAnalyzer {
 			if (s instanceof AssignStmt) {
 				AssignStmt as = (AssignStmt)s;
 				localAssignDefs.put(as.getLeftOp(), as.getRightOp());
+				//System.out.println("Assignment stmt: " + s);
+			} else if (s instanceof IdentityRef) {
+				//System.out.println("IdentityRef: " + s);
+			} else if (s instanceof IdentityStmt) {
+				//System.out.println("IdentityStmt; " + s);
 			}
 		}
 		return localAssignDefs;
@@ -143,7 +189,7 @@ public class FlowTriggerEventAnalyzer {
 			
 			HashMap<Value, InvokeExpr> localInvokeDefs = getLocalInvokeDefs(units); // map of local variable => method definition within this method
 			HashMap<Value, Value> localAssignDefs = getLocalAssignDefs(units); // map of local variable => method definition within this method
-
+			
 			for (Unit u : units) {
 				Stmt s = (Stmt)u;
 				if (s.containsInvokeExpr()) {
@@ -162,7 +208,7 @@ public class FlowTriggerEventAnalyzer {
 								ArrayList<Value> params = analyzeNonConstantVarDefinition(arg, localInvokeDefs.get(arg), localInvokeDefs, localAssignDefs);
 								System.out.println("[NUTEXT] Extracted parameters: " + params.toString());
 								System.out.println("[NUTEXT] Invoked method: " + localInvokeDefs.get(arg).getMethod().toString());
-								ConstantDefResult cdr = hasConstantDefinition(localInvokeDefs.get(arg).getMethod());
+								ConstantDefResult cdr = hasConstantDefinition(localInvokeDefs.get(arg).getMethod(), params);
 								if (cdr.isConstant) {
 									System.out.println("[NUTEXT] findViewById has constant args: " + cdr.id.toString());
 									this.IDs.add(Integer.parseInt(cdr.id.toString()));
@@ -178,10 +224,58 @@ public class FlowTriggerEventAnalyzer {
 			}
 		}
 	}
+
+	public Value getVariableDefinition(SootMethod m, Value r) {
+		UnitGraph g = new ExceptionalUnitGraph(m.getActiveBody());
+		Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
+		List<Unit> units = orderer.newList(g, false);
+
+		HashMap<Value, InvokeExpr> localInvokeDefs = new HashMap<Value, InvokeExpr>();
+		HashMap<Value, Value> localAssignDefs = new HashMap<Value, Value>();
+		
+		for (Unit u : units) {
+			Stmt s = (Stmt)u;
+			List<ValueBox> defs = s.getDefBoxes();
+			if (s instanceof AssignStmt) {
+				AssignStmt as = (AssignStmt)s;
+				localAssignDefs.put(as.getLeftOp(), as.getRightOp());
+			} else if (s.containsInvokeExpr()) {
+				for (ValueBox defBox: defs) {
+					localInvokeDefs.put(defBox.getValue(), s.getInvokeExpr());
+				}
+			}
+		}
+		
+		while (!this.paramAnalyzer.isConstant(r)) {
+			if (localAssignDefs.containsKey(r)) {
+				r = localAssignDefs.get(r);
+				System.out.println("New def for val: " + r);
+			} else {
+				return null;
+			}
+		}
+		return r;
+	}
 	
-	public ConstantDefResult hasConstantDefinition(SootMethod m) {
+	public int getParamNumber(Value v) {
+		/*
+		 * Given a Value, check if it is a parameter reference, and if so, return the parameter number. 
+		 * ex) @parameter2 => 2 
+		 * If not a parameter reference, returns -1
+		 * @param Value v : Retrieve by s.getRightOp(); from an IdentityStmt
+		 */
+		if (v.toString().contains("@parameter")) {
+			int sIndex = v.toString().indexOf("@parameter") + "@parameter".length();
+			int eIndex = v.toString().indexOf(":");
+			return Integer.parseInt(v.toString().substring(sIndex, eIndex));
+		} else {
+			return -1;
+		}
+	}
+	
+	public ConstantDefResult hasConstantDefinition(SootMethod m, ArrayList<Value> params) {
 		if (this.nonConstantKnownMethods.contains(m.getName())) {
-			return this.ncAnalyzer.analyze(m);
+			return this.ncAnalyzer.analyze(m, params);
 		} else if (!m.hasActiveBody()) {
 			return new ConstantDefResult(null, false);
 		} else {
@@ -192,19 +286,40 @@ public class FlowTriggerEventAnalyzer {
 			
 			HashMap<Value, InvokeExpr> localInvokeDefs = getLocalInvokeDefs(units); // map of local variable => method definition within this method
 			HashMap<Value, Value> localAssignDefs = getLocalAssignDefs(units); // map of local variable => method definition within this method
-
-			for (Unit unit : units) {
+			
+			for (Unit unit : units) { // TODO REFACTOR THIS RETARDED FORLOOP
 				Stmt s = (Stmt)unit;
 				if (s instanceof ReturnStmt) {
 					ReturnStmt rs = (ReturnStmt)s;
 					Value returnVal = rs.getOp();
 					if (localInvokeDefs.containsKey(returnVal)) {
 						InvokeExpr ie = localInvokeDefs.get(returnVal);
-						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " which invokes: " + ie.toString());
-						return hasConstantDefinition(ie.getMethod());
+						
+						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " which invokes: " + ie.toString() + ", with parameters of: " + ie.getArgs().toString());
+						HashMap<Value, Value> localDefs = getDefinitions(units, unit); // TODO: This "unit" needs to get fixed to whichever Unit was invoking "ie"
+						System.out.println("Found definitions defined previously: " + localDefs);
+						ArrayList<Value> newParams = new ArrayList<Value>();
+						for (Value ieArg : ie.getArgs()) {
+							//System.out.println("Param: " + getVariableDefinition(ie.getMethod(), ieArg));
+							if (localDefs.containsKey(ieArg)) {
+								//params.add(localDefs.get(ieArg));
+								Value argDef = localDefs.get(ieArg);
+								int paramNum = getParamNumber(argDef);
+								if (!(paramNum < 0)) {
+									System.out.println("Found a param definition: " + params.get(paramNum));
+									newParams.add(params.get(paramNum));
+								} else {
+									newParams.add(null);
+									System.out.println("Found a param definition: " + localDefs.get(ieArg));	
+								}
+								System.out.println("Parameters for this method: " + params);
+							}
+						}
+						return hasConstantDefinition(ie.getMethod(), newParams);
 					} else if (localAssignDefs.containsKey(rs.getOp())) {
 						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " defined by: " + localAssignDefs.get(rs.getOp()).toString());
 						Value assignVal = localAssignDefs.get(returnVal);
+						//getVariableDefinition(m, rs.getOp());
 						if (localInvokeDefs.containsKey(assignVal)) {
 							System.out.println("local invocation for " + assignVal.toString() + " by invoking " + localInvokeDefs.get(assignVal).toString());
 						} else if (localAssignDefs.containsKey(assignVal)) {
