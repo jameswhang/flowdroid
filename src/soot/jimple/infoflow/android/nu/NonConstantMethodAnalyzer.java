@@ -30,13 +30,14 @@ public class NonConstantMethodAnalyzer {
 	public ConstantDefResult getIdentifierAnalyze(SootMethod m, ArrayList<Value> params) {
 		System.out.println("Found a getIdentifier method invocation with params: " + params);
 		System.out.println("Resource ID: " + this.lfp.findResourceIDByName(params.get(0).toString().replaceAll("\"", "")) + " for name: " + params.get(0));
-		return new ConstantDefResult(null, false);
+		int id = this.lfp.findResourceIDByName(params.get(0).toString().replaceAll("\"",  ""));
+		return new ConstantDefResult(id, true);
 	}
 	
 	public ConstantDefResult analyze(SootMethod m, ArrayList<Value> params) {
 		if (m.getName().equals("getIdentifier")) {
 			return getIdentifierAnalyze(m, params);
 		}
-		return new ConstantDefResult(null, false);
+		return new ConstantDefResult(-1, false);
 	}
 }

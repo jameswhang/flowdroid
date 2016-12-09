@@ -210,8 +210,8 @@ public class FlowTriggerEventAnalyzer {
 								System.out.println("[NUTEXT] Invoked method: " + localInvokeDefs.get(arg).getMethod().toString());
 								ConstantDefResult cdr = hasConstantDefinition(localInvokeDefs.get(arg).getMethod(), params);
 								if (cdr.isConstant) {
-									System.out.println("[NUTEXT] findViewById has constant args: " + cdr.id.toString());
-									this.IDs.add(Integer.parseInt(cdr.id.toString()));
+									System.out.println("[NUTEXT] findViewById has constant args: " + cdr.id);
+									this.IDs.add(cdr.id);
 								} else {
 									System.out.println("[NUTEXT] findViewById has non-constant args that cannot be determined statically");
 								}
@@ -277,7 +277,7 @@ public class FlowTriggerEventAnalyzer {
 		if (this.nonConstantKnownMethods.contains(m.getName())) {
 			return this.ncAnalyzer.analyze(m, params);
 		} else if (!m.hasActiveBody()) {
-			return new ConstantDefResult(null, false);
+			return new ConstantDefResult(-1, false);
 		} else {
 			UnitGraph g = new ExceptionalUnitGraph(m.getActiveBody());
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
@@ -331,15 +331,16 @@ public class FlowTriggerEventAnalyzer {
 					} else {
 						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString());
 						if(this.paramAnalyzer.isConstant(returnVal)) {
-							return new ConstantDefResult(returnVal, true);
+							int id = Integer.parseInt(returnVal.toString());
+							return new ConstantDefResult(id, true);
 						} else {
-							return new ConstantDefResult(null, false);
+							return new ConstantDefResult(-1, false);
 						}
 					}
 				}
 			}
 			System.out.println("[NUTEXT] WARNING: retrieving constant value from a method without return statement.");
-			return new ConstantDefResult(null, false);
+			return new ConstantDefResult(-1, false);
 		}
 	}
 	

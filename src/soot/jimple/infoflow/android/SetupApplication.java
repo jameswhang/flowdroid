@@ -849,14 +849,7 @@ public class SetupApplication {
 	
 	private void analyzeInfoFlowResult(InfoflowResults results, String apkFileLocation) {
 		System.out.println("******* [NU OUTPUT BEGIN] ********");
-		FlowTriggerEventAnalyzer fteAnalyzer = new FlowTriggerEventAnalyzer(results, apkFileLocation);
-		fteAnalyzer.RunCallGraphAnalysis();
-		fteAnalyzer.RunCFGAnalysis();
-		
-		Set<Integer> ids = fteAnalyzer.getIDs(); // All IDs of findViewByIDs that can be found statically 
-		System.out.println("FOUND IDS");
-		System.out.println(ids);
-		
+
 		ARSCFileParser resParser = new ARSCFileParser();
 		try {
 			resParser.parse(apkFileLocation);
@@ -868,17 +861,19 @@ public class SetupApplication {
 		LayoutFileParserForTextExtraction lfpTE = new LayoutFileParserForTextExtraction(this.appPackageName, resParser);
 		lfpTE.parseLayoutFileForTextExtraction(apkFileLocation);
 		Map<Integer, List<String>> id2Texts = lfpTE.getId2Texts();
-//		
-//		int custom_title_id = lfpTE.findResourceIDByName("wallpaper"); 
-//		String custom_title_name = lfpTE.findResourceNameById(custom_title_id);
-//		
+		
+		FlowTriggerEventAnalyzer fteAnalyzer = new FlowTriggerEventAnalyzer(results, apkFileLocation, lfpTE);
+		fteAnalyzer.RunCallGraphAnalysis();
+		fteAnalyzer.RunCFGAnalysis();
+		
+		Set<Integer> ids = fteAnalyzer.getIDs(); // All IDs of findViewByIDs that can be found statically 
+		System.out.println("FOUND IDS");
+		System.out.println(ids);
 		
 		for(Integer id : id2Texts.keySet()){
 			for(String msg : id2Texts.get(id)) {
 				if (ids.contains(id)) {
-					System.out.println("KNOWNVIEWTEXT for findViewById: "+id+" -> "+msg);	
-				//} else if (id == custom_title_id) {
-				//	System.out.println("KNOWNVIEWTEXT for special custom title: " + id + " -> " + msg);
+					System.out.println("KNOWNVIEWTEXT for findViewById: "+id+" -> "+msg);
 				} else {
 					System.out.println("NOTASSOCIATEDVIEWTEXT: " + id + " -> " + msg);
 				}
