@@ -168,11 +168,6 @@ public class FlowTriggerEventAnalyzer {
 			if (s instanceof AssignStmt) {
 				AssignStmt as = (AssignStmt)s;
 				localAssignDefs.put(as.getLeftOp(), as.getRightOp());
-				//System.out.println("Assignment stmt: " + s);
-			} else if (s instanceof IdentityRef) {
-				//System.out.println("IdentityRef: " + s);
-			} else if (s instanceof IdentityStmt) {
-				//System.out.println("IdentityStmt; " + s);
 			}
 		}
 		return localAssignDefs;
@@ -219,6 +214,7 @@ public class FlowTriggerEventAnalyzer {
 						}
 					} else if (m.getName().equals("setContentView")) {
 						System.out.println("**** Method signature: " + m.getSignature() + "*****");
+						// TODO: work on this
 					}
 				}
 			}
@@ -319,15 +315,7 @@ public class FlowTriggerEventAnalyzer {
 					} else if (localAssignDefs.containsKey(rs.getOp())) {
 						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString() + " defined by: " + localAssignDefs.get(rs.getOp()).toString());
 						Value assignVal = localAssignDefs.get(returnVal);
-						//getVariableDefinition(m, rs.getOp());
-						if (localInvokeDefs.containsKey(assignVal)) {
-							System.out.println("local invocation for " + assignVal.toString() + " by invoking " + localInvokeDefs.get(assignVal).toString());
-						} else if (localAssignDefs.containsKey(assignVal)) {
-							System.out.println("local assignment: " + assignVal.toString());
-						} else {
-							System.out.println("Cannot find definition...");
-							System.out.println(m.getActiveBody().toString());
-						}
+						// TODO: Fix this shit
 					} else {
 						System.out.println("[NUTEXT] Returns: " + rs.getOp().toString());
 						if(this.paramAnalyzer.isConstant(returnVal)) {
