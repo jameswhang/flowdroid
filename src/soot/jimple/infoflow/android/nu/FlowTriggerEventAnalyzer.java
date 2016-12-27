@@ -45,6 +45,7 @@ public class FlowTriggerEventAnalyzer {
 	private StaticValueService staticValueService;
 	private Set<SootMethod> triggerMethods;
 	private ParamAnalyzer paramAnalyzer;
+	private TraceParamSource parameterSourceTracer; // Dec 24
 	private ARSCFileParser arscParser;
 	private NonConstantMethodAnalyzer ncAnalyzer;
 	private Set<Integer> IDs; 
@@ -59,6 +60,8 @@ public class FlowTriggerEventAnalyzer {
 		this.paramAnalyzer = new ParamAnalyzer(); // parameter type&value analyzer
 		this.arscParser = new ARSCFileParser(); // ARSC file parser
 		this.ncAnalyzer = new NonConstantMethodAnalyzer(lfpTE); // non-constant return value analyzer
+		
+		this.parameterSourceTracer = new TraceParamSource(); // Dec 24
 		
 		this.IDs = new HashSet<Integer>();
 		this.nonConstantKnownMethods = ncAnalyzer.getAllNonConstantMethods();
@@ -173,7 +176,7 @@ public class FlowTriggerEventAnalyzer {
 		return localAssignDefs;
 	}
 	
-	public void RunCFGAnalysis() {
+	public void g() {
 		for (SootMethod triggerMethod : this.triggerMethods) {
 			if (!triggerMethod.hasActiveBody()) {
 				continue;
@@ -182,8 +185,13 @@ public class FlowTriggerEventAnalyzer {
 			Orderer<Unit> orderer = new PseudoTopologicalOrderer<Unit>();
 			List<Unit> units = orderer.newList(g, false);
 			
+			//Dec 24
+			CallGraph cgraph = Scene.v().getCallGraph(); //Dec 24
+			
 			HashMap<Value, InvokeExpr> localInvokeDefs = getLocalInvokeDefs(units); // map of local variable => method definition within this method
 			HashMap<Value, Value> localAssignDefs = getLocalAssignDefs(units); // map of local variable => method definition within this method
+			
+			List<SootMethod> orginMethods = new ArrayList<SootMethod>(); // The methods that returns a non-constant id
 			
 			for (Unit u : units) {
 				Stmt s = (Stmt)u;
@@ -209,6 +217,16 @@ public class FlowTriggerEventAnalyzer {
 									this.IDs.add(cdr.id);
 								} else {
 									System.out.println("[NUTEXT] findViewById has non-constant args that cannot be determined statically");
+									
+									//Trace the callgraph and try to see if it can find any Sootmethod that has a return value that equals the id, Dec. 
+									for (ResultSinkInfo sink : this.infoflowResultMap.keySet())
+									{
+										Set<ResultSourceInfo> sources = this.infoflowResultMap.get(sink);
+										for(ResultSourceInfo source : sources){
+											SootMethod sourceMethod = source.getSource().getInvokeExpr().getMethod();
+											orginMethods = this.parameterSourceTracer.traceNonConstantParam(cgraph, sourceMethod, sink.getSink().getInvokeExpr().getMethod());
+										}
+									}								
 								}
 							}
 						}
