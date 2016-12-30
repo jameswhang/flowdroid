@@ -176,7 +176,7 @@ public class FlowTriggerEventAnalyzer {
 		return localAssignDefs;
 	}
 	
-	public void g() { //RunCFGAnalysis?
+	public void RunCFGAnalysis() { //g()?
 		for (SootMethod triggerMethod : this.triggerMethods) {
 			if (!triggerMethod.hasActiveBody()) {
 				continue;

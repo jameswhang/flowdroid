@@ -234,10 +234,13 @@ public class ParamAnalyzer {
 	
 	
 	
-	
-	
+	// Try to fix the constant determination Dec.30
+	public boolean isConstant2(Value v) {
+		if (v instanceof Constant) {
+			return true;
+		}
+		return false;
+	}
 	
 	
 }
-
-//NOTE: Please feel free to contact Xiang Pan(xiangpan2011@u.northwestern.edu) and Xuechao Du(xcdu@foxmail.com) if there's any problem with the code.
